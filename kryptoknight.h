@@ -11,10 +11,15 @@ class Kryptoknight
 {
 public:
     typedef int (*RNG_Function)(uint8_t *dest, unsigned size);
+    typedef bool(*TX_Function)(byte* data, byte length);
+    typedef bool(*RX_Function)(byte* &data, byte& length);
+    typedef void(*EventHandler)(byte* data, byte length);
+
     typedef enum
     {
         NO_AUTHENTICATION,
-        AUTHENTICATION_OK,
+        AUTHENTICATION_AS_INITIATOR_OK,
+        AUTHENTICATION_AS_PEER_OK,
         AUTHENTICATION_BUSY,
     }AUTHENTICATION_RESULT;
     typedef enum
@@ -22,10 +27,11 @@ public:
         INITIATOR,
         PEER
     }AUTHENTICATION_ROLE;
-    Kryptoknight(AUTHENTICATION_ROLE role, byte *localId, byte idLength, byte *sharedkey, RNG_Function rng_function);
-    bool initAuthentication(const byte *id_B, const byte* payload, byte payloadLength, byte* messageOut, byte& messagelength);
-    AUTHENTICATION_RESULT processAuthentication(const byte* messageBufferIn, byte messagelengthIn,
-                                                byte* payloadOut, byte& payloadlengthOut);
+    Kryptoknight(const byte *localId, byte idLength, const byte *sharedkey, RNG_Function rng_function,
+                 TX_Function tx_func, RX_Function rx_func);
+    AUTHENTICATION_RESULT loop();
+    bool sendMessage(const byte* remoteId, const byte* payload, byte payloadLength);
+    void setMessageReceivedHandler(EventHandler rxedEvent);
 private:
     typedef enum
     {
@@ -48,8 +54,13 @@ private:
     bool isValidMacba(byte* macIn);
     bool isValidMacab(byte* macIn);
     RNG_Function _rng_function;
+    TX_Function _txfunc;
+    RX_Function _rxfunc;
+    EventHandler _rxedEvent;
     AUTHENTICATION_STATE _state;
     AUTHENTICATION_ROLE _role;
+    byte* _localID;
+    byte* _remoteID;
     byte* _id_A;
     byte* _id_B;
     byte _idLength;
