@@ -12,7 +12,7 @@ class Kryptoknight
 public:
     typedef int (*RNG_Function)(uint8_t *dest, unsigned size);
     typedef bool(*TX_Function)(byte* data, byte length);
-    typedef bool(*RX_Function)(byte* &data, byte& length);
+    typedef bool(*RX_Function)(byte** data, byte& length);
     typedef void(*EventHandler)(byte* data, byte length);
 
     typedef enum
@@ -69,6 +69,7 @@ private:
     byte _payload[MAX_PAYLOAD_LENGTH];
     byte _payloadLength;
     byte _sharedKey[KEY_LENGTH];
+    unsigned long _commTimeOut;
 };
 
 #endif // KRYPTOKNIGHT_H

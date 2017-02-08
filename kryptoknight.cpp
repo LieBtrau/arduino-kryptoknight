@@ -10,7 +10,8 @@ Kryptoknight::Kryptoknight(const byte *localId, byte idLength, const byte *share
     _rng_function(rng_function),
     _txfunc(tx_func),
     _rxfunc(rx_func),
-    _rxedEvent(0)
+    _rxedEvent(0),
+    _commTimeOut(0)
 {
     _localID=(byte*) malloc(_idLength);
     memcpy(_localID, localId, _idLength);
@@ -47,6 +48,7 @@ bool Kryptoknight::sendMessage(const byte* remoteId, const byte* payload, byte p
     _id_A=_localID;
     _id_B=_remoteID;
     _state=WAITING_FOR_NONCE_B;
+    _commTimeOut=millis();
     return true;
 }
 
@@ -56,16 +58,25 @@ void Kryptoknight::setMessageReceivedHandler(EventHandler rxedEvent)
 }
 
 
+
 Kryptoknight::AUTHENTICATION_RESULT Kryptoknight::loop()
 {
+    byte messageBufferOut[255];
     byte* messageBufferIn;
-    byte messageBufferOut[1+NONCE_LENGTH+MAX_PAYLOAD_LENGTH];
     byte messageLengthIn;
 
-    if(!_rxfunc(messageBufferIn, messageLengthIn))
+    if(millis()>_commTimeOut+10000)
     {
 #ifdef DEBUG
-       // Serial.println("No message ready.");
+        Serial.println("Timeout");
+#endif
+        _state=WAITING_FOR_NONCE_A;
+        _commTimeOut=millis();
+    }
+    if(!_rxfunc(&messageBufferIn, messageLengthIn))
+    {
+#ifdef DEBUG
+        // Serial.println("No message ready.");
 #endif
         return _state==WAITING_FOR_NONCE_A ? NO_AUTHENTICATION: AUTHENTICATION_BUSY;
     }
@@ -77,7 +88,7 @@ Kryptoknight::AUTHENTICATION_RESULT Kryptoknight::loop()
         if(messageBufferIn[0]!=NONCE_A)
         {
 #ifdef DEBUG
-        Serial.println("Message is not NONCE_A.");
+            Serial.println("Message is not NONCE_A.");
 #endif
             return NO_AUTHENTICATION;
         }
@@ -96,16 +107,22 @@ Kryptoknight::AUTHENTICATION_RESULT Kryptoknight::loop()
         if(_txfunc(messageBufferOut,1+KEY_LENGTH+NONCE_LENGTH))
         {
 #ifdef DEBUG
-        Serial.println("2nd message in protocol sent.");
+            Serial.println("2nd message in protocol sent.");
 #endif
             _state=WAITING_FOR_MAC_NAB;
+            _commTimeOut=millis();
+            return AUTHENTICATION_BUSY;
         }
-        return AUTHENTICATION_BUSY;
+#ifdef DEBUG
+        Serial.println("Can't send 2nd message in protocol");
+#endif
+        _state=WAITING_FOR_NONCE_A;
+        return NO_AUTHENTICATION;
     case WAITING_FOR_NONCE_B:   //Initiator waiting for message = TAG | MACba(NA|PAYLOAD|NB|B) | NB
         if(messageBufferIn[0]!=NONCE_B)
         {
 #ifdef DEBUG
-        Serial.println("Message is not NONCE_B");
+            Serial.println("Message is not NONCE_B");
 #endif
             _state=WAITING_FOR_NONCE_A;
             return NO_AUTHENTICATION;
@@ -115,7 +132,7 @@ Kryptoknight::AUTHENTICATION_RESULT Kryptoknight::loop()
         if(!isValidMacba((byte*)messageBufferIn+1))
         {
 #ifdef DEBUG
-        Serial.println("MAC_BA is invalid");
+            Serial.println("MAC_BA is invalid");
 #endif
             _state=WAITING_FOR_NONCE_A;
             return NO_AUTHENTICATION;

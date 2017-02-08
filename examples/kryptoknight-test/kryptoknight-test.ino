@@ -110,16 +110,16 @@ bool writeData2(byte* data, byte length)
 }
 
 //Dummy function to read incoming data on device 1
-bool readData1(byte* &data, byte& length)
+bool readData1(byte** data, byte& length)
 {
     if(!dataReady)
     {
     return false;
     }
     dataReady=false;
-    data=rxtxData;
+    *data=rxtxData;
     length=rxtxLength;
-    Serial.print("Data read by device 1: ");print(data, length);
+    Serial.print("Data read by device 1: ");print(*data, length);
     return true;
 }
 
@@ -135,15 +135,15 @@ bool writeData1(byte* data, byte length)
 }
 
 //Dummy function to read incoming data on device 2
-bool readData2(byte* &data, byte& length)
+bool readData2(byte** data, byte& length)
 {
     if(!dataReady2)
     {
     return false;
     }
     dataReady2=false;
-    data=rxtxData2;
+    *data=rxtxData2;
     length=rxtxLength2;
-    Serial.print("Data read by device 2: ");print(data, length);
+    Serial.print("Data read by device 2: ");print(*data, length);
     return true;
 }
