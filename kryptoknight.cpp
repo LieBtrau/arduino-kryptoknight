@@ -3,21 +3,41 @@
 
 #include "kryptoknight.h"
 #define DEBUG
+#ifdef DEBUG
+extern void print(const byte* array, byte length);
+#endif
+
 
 Kryptoknight::Kryptoknight(const byte *localId, byte idLength, const byte *sharedkey, RNG_Function rng_function,
                            TX_Function tx_func, RX_Function rx_func):
-    _idLength(idLength),
+    Kryptoknight(sharedkey, rng_function, tx_func, rx_func)
+{
+    setLocalId(localId, idLength);
+}
+
+Kryptoknight::Kryptoknight(const byte *sharedkey, RNG_Function rng_function,
+                           TX_Function tx_func, RX_Function rx_func):
     _rng_function(rng_function),
     _txfunc(tx_func),
     _rxfunc(rx_func),
     _rxedEvent(0),
     _commTimeOut(0)
 {
-    _localID=(byte*) malloc(_idLength);
-    memcpy(_localID, localId, _idLength);
-    _remoteID=(byte*) malloc(_idLength);
     memcpy(_sharedKey, sharedkey, KEY_LENGTH);
     _state=WAITING_FOR_NONCE_A;
+}
+
+bool Kryptoknight::setLocalId(const byte* localId, byte idLength)
+{
+    _idLength=idLength;
+    _localID=(byte*) malloc(_idLength);
+    if(!_localID)
+    {
+        return false;
+    }
+    memcpy(_localID, localId, _idLength);
+    _remoteID=(byte*) malloc(_idLength);
+    return true;
 }
 
 //Prepare initiator message = TAG | NONCE(A) | PAYLOAD
@@ -77,6 +97,13 @@ Kryptoknight::AUTHENTICATION_RESULT Kryptoknight::loop()
     {
 #ifdef DEBUG
         // Serial.println("No message ready.");
+#endif
+        return _state==WAITING_FOR_NONCE_A ? NO_AUTHENTICATION: AUTHENTICATION_BUSY;
+    }
+    if(!messageLengthIn)
+    {
+#ifdef DEBUG
+        Serial.println("Empty message.");
 #endif
         return _state==WAITING_FOR_NONCE_A ? NO_AUTHENTICATION: AUTHENTICATION_BUSY;
     }

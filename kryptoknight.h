@@ -29,7 +29,10 @@ public:
     }AUTHENTICATION_ROLE;
     Kryptoknight(const byte *localId, byte idLength, const byte *sharedkey, RNG_Function rng_function,
                  TX_Function tx_func, RX_Function rx_func);
+    Kryptoknight(const byte *sharedkey, RNG_Function rng_function,
+                 TX_Function tx_func, RX_Function rx_func);
     AUTHENTICATION_RESULT loop();
+    bool setLocalId(const byte* localId, byte idLength);
     bool sendMessage(const byte* remoteId, const byte* payload, byte payloadLength);
     void setMessageReceivedHandler(EventHandler rxedEvent);
 private:
