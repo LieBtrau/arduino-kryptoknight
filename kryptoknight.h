@@ -73,6 +73,7 @@ private:
     byte _payloadLength;
     byte _sharedKey[KEY_LENGTH];
     unsigned long _commTimeOut;
+    byte* _messageBuffer;
 };
 
 #endif // KRYPTOKNIGHT_H

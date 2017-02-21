@@ -8,8 +8,8 @@ extern void print(const byte* array, byte length);
 #endif
 
 
-Kryptoknight::Kryptoknight(const byte *localId, byte idLength, const byte *sharedkey, RNG_Function rng_function,
-                           TX_Function tx_func, RX_Function rx_func):
+Kryptoknight::Kryptoknight(const byte *localId, byte idLength, const byte *sharedkey,
+                           RNG_Function rng_function, TX_Function tx_func, RX_Function rx_func):
     Kryptoknight(sharedkey, rng_function, tx_func, rx_func)
 {
     setLocalId(localId, idLength);
@@ -24,6 +24,13 @@ Kryptoknight::Kryptoknight(const byte *sharedkey, RNG_Function rng_function,
     _commTimeOut(0)
 {
     memcpy(_sharedKey, sharedkey, KEY_LENGTH);
+    _messageBuffer=(byte*)malloc(255);
+    if(!_messageBuffer)
+    {
+#ifdef DEBUG
+        Serial.println("Can't init.");
+#endif
+    }
     _state=WAITING_FOR_NONCE_A;
 }
 
@@ -54,11 +61,10 @@ bool Kryptoknight::sendMessage(const byte* remoteId, const byte* payload, byte p
     _payloadLength=payloadLength;
     memcpy(_payload, payload, _payloadLength);
     memcpy(_remoteID, remoteId, _idLength);
-    byte buf[1+NONCE_LENGTH+payloadLength];
-    buf[0]=NONCE_A;
-    memcpy(buf+1, _nonce_A, NONCE_LENGTH);
-    memcpy(buf+1+NONCE_LENGTH, payload, payloadLength);
-    if(!_txfunc(buf,1+NONCE_LENGTH+payloadLength))
+    *_messageBuffer=NONCE_A;
+    memcpy(_messageBuffer+1, _nonce_A, NONCE_LENGTH);
+    memcpy(_messageBuffer+1+NONCE_LENGTH, payload, payloadLength);
+    if(!_txfunc(_messageBuffer,1+NONCE_LENGTH+payloadLength))
     {
 #ifdef DEBUG
         Serial.println("Can't send initiator message.");
@@ -81,9 +87,7 @@ void Kryptoknight::setMessageReceivedHandler(EventHandler rxedEvent)
 
 Kryptoknight::AUTHENTICATION_RESULT Kryptoknight::loop()
 {
-    byte messageBufferOut[255];
-    byte* messageBufferIn;
-    byte messageLengthIn;
+    byte messageLength;
 
     if(millis()>_commTimeOut+10000)
     {
@@ -93,26 +97,29 @@ Kryptoknight::AUTHENTICATION_RESULT Kryptoknight::loop()
         _state=WAITING_FOR_NONCE_A;
         _commTimeOut=millis();
     }
-    if(!_rxfunc(&messageBufferIn, messageLengthIn))
+    messageLength=255;
+    if(!_rxfunc(&_messageBuffer, messageLength) || !messageLength)
     {
 #ifdef DEBUG
         // Serial.println("No message ready.");
 #endif
-        return _state==WAITING_FOR_NONCE_A ? NO_AUTHENTICATION: AUTHENTICATION_BUSY;
-    }
-    if(!messageLengthIn)
-    {
+        if(!messageLength)
+        {
 #ifdef DEBUG
-        Serial.println("Empty message.");
+            Serial.println("Empty message.");
 #endif
+        }
         return _state==WAITING_FOR_NONCE_A ? NO_AUTHENTICATION: AUTHENTICATION_BUSY;
     }
+#ifdef DEBUG
+    Serial.println("Received something!");
+#endif
     switch(_state)
     {
     case WAITING_FOR_NONCE_A:   //Remote peer waiting for message = TAG | NONCE(A) | PAYLOAD
         _id_A=_remoteID;
         _id_B=_localID;
-        if(messageBufferIn[0]!=NONCE_A)
+        if(*_messageBuffer!=NONCE_A)
         {
 #ifdef DEBUG
             Serial.println("Message is not NONCE_A.");
@@ -120,18 +127,18 @@ Kryptoknight::AUTHENTICATION_RESULT Kryptoknight::loop()
             return NO_AUTHENTICATION;
         }
         //Get parameters from incoming message
-        memcpy(_nonce_A, messageBufferIn+1, NONCE_LENGTH);
-        _payloadLength=messageLengthIn-1-NONCE_LENGTH;
-        memcpy(_payload, messageBufferIn+1+NONCE_LENGTH, _payloadLength);
+        memcpy(_nonce_A, _messageBuffer+1, NONCE_LENGTH);
+        _payloadLength=messageLength-1-NONCE_LENGTH;
+        memcpy(_payload, _messageBuffer+1+NONCE_LENGTH, _payloadLength);
         //Prepare 2nd message in protocol = TAG | MACba(NA|PAYLOAD|NB|B) | NB
-        messageBufferOut[0]=NONCE_B;
+        *_messageBuffer=NONCE_B;
         _rng_function(_nonce_B,NONCE_LENGTH);
-        calcMacba(messageBufferOut+1);
-        memcpy(messageBufferOut+1+KEY_LENGTH, _nonce_B, NONCE_LENGTH);
+        calcMacba(_messageBuffer+1);
+        memcpy(_messageBuffer+1+KEY_LENGTH, _nonce_B, NONCE_LENGTH);
 #ifdef DEBUG
         Serial.println("NONCE_A correctly received.");
 #endif
-        if(_txfunc(messageBufferOut,1+KEY_LENGTH+NONCE_LENGTH))
+        if(_txfunc(_messageBuffer,1+KEY_LENGTH+NONCE_LENGTH))
         {
 #ifdef DEBUG
             Serial.println("2nd message in protocol sent.");
@@ -146,7 +153,7 @@ Kryptoknight::AUTHENTICATION_RESULT Kryptoknight::loop()
         _state=WAITING_FOR_NONCE_A;
         return NO_AUTHENTICATION;
     case WAITING_FOR_NONCE_B:   //Initiator waiting for message = TAG | MACba(NA|PAYLOAD|NB|B) | NB
-        if(messageBufferIn[0]!=NONCE_B)
+        if(*_messageBuffer!=NONCE_B)
         {
 #ifdef DEBUG
             Serial.println("Message is not NONCE_B");
@@ -155,8 +162,8 @@ Kryptoknight::AUTHENTICATION_RESULT Kryptoknight::loop()
             return NO_AUTHENTICATION;
         }
         //Getting parameters from message: TAG | MACba(NA|PAYLOAD|NB|B) | NB
-        memcpy(_nonce_B,messageBufferIn+1+KEY_LENGTH,NONCE_LENGTH);
-        if(!isValidMacba((byte*)messageBufferIn+1))
+        memcpy(_nonce_B,_messageBuffer+1+KEY_LENGTH,NONCE_LENGTH);
+        if(!isValidMacba((byte*)_messageBuffer+1))
         {
 #ifdef DEBUG
             Serial.println("MAC_BA is invalid");
@@ -168,18 +175,21 @@ Kryptoknight::AUTHENTICATION_RESULT Kryptoknight::loop()
         Serial.println("MAC_BA is valid");
 #endif
         //Prepare 3rd message in protocol: TAG | MACab(NA | NB)
-        messageBufferOut[0]=MAC_NAB;
-        calcMacab(messageBufferOut+1);
+        *_messageBuffer=MAC_NAB;
+        calcMacab(_messageBuffer+1);
         _state=WAITING_FOR_NONCE_A;
 #ifdef DEBUG
         Serial.println("MAC_NAB is sent");
 #endif
-        return _txfunc(messageBufferOut,1+KEY_LENGTH) ? AUTHENTICATION_AS_INITIATOR_OK : NO_AUTHENTICATION;
+        return _txfunc(_messageBuffer,1+KEY_LENGTH) ? AUTHENTICATION_AS_INITIATOR_OK : NO_AUTHENTICATION;
     case WAITING_FOR_MAC_NAB://Remote peer waiting for message = TAG | MACab(NA | NB)
         _state=WAITING_FOR_NONCE_A;
         //Check incoming message
-        if((messageBufferIn[0]!=MAC_NAB) || (!isValidMacab((byte*)messageBufferIn+1)))
+        if((*_messageBuffer!=MAC_NAB) || (!isValidMacab((byte*)_messageBuffer+1)))
         {
+#ifdef DEBUG
+            Serial.println("MAC_NAB not correctly received");
+#endif
             return NO_AUTHENTICATION;
         }
         if(_rxedEvent)
