@@ -2,20 +2,20 @@
 // P.Janson, G.Tsudik, M.Yung, "Scalability and Flexibility in Authentication Services: The Kryptoknight Approach," Proc. IEEE Infocom 97, Kobe, Japan (Apr 97).
 
 #include "kryptoknight.h"
-#define DEBUG
+//#define DEBUG
 #ifdef DEBUG
 extern void print(const byte* array, byte length);
 #endif
 
 
-Kryptoknight::Kryptoknight(const byte *localId, byte idLength, const byte *sharedkey,
+Kryptoknight::Kryptoknight(const byte *localId, byte idLength,
                            RNG_Function rng_function, TX_Function tx_func, RX_Function rx_func):
-    Kryptoknight(sharedkey, rng_function, tx_func, rx_func)
+    Kryptoknight(rng_function, tx_func, rx_func)
 {
     setLocalId(localId, idLength);
 }
 
-Kryptoknight::Kryptoknight(const byte *sharedkey, RNG_Function rng_function,
+Kryptoknight::Kryptoknight(RNG_Function rng_function,
                            TX_Function tx_func, RX_Function rx_func):
     _rng_function(rng_function),
     _txfunc(tx_func),
@@ -23,7 +23,6 @@ Kryptoknight::Kryptoknight(const byte *sharedkey, RNG_Function rng_function,
     _rxedEvent(0),
     _commTimeOut(0)
 {
-    memcpy(_sharedKey, sharedkey, KEY_LENGTH);
     _messageBuffer=(byte*)malloc(255);
     if(!_messageBuffer)
     {
@@ -46,6 +45,12 @@ bool Kryptoknight::setLocalId(const byte* localId, byte idLength)
     _remoteID=(byte*) malloc(_idLength);
     return true;
 }
+
+void  Kryptoknight::setSharedKey(const byte* key)
+{
+    memcpy(_sharedKey, key, KEY_LENGTH);
+}
+
 
 //Prepare initiator message = TAG | NONCE(A) | PAYLOAD
 bool Kryptoknight::sendMessage(const byte* remoteId, const byte* payload, byte payloadLength)
