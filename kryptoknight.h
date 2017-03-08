@@ -31,7 +31,7 @@ public:
     Kryptoknight(RNG_Function rng_function, TX_Function tx_func, RX_Function rx_func);
     AUTHENTICATION_RESULT loop();
     bool setLocalId(const byte* localId, byte idLength);
-    void setSharedKey(const byte* key);
+    void setSharedKey(byte* key);
     bool sendMessage(const byte* remoteId, const byte* payload, byte payloadLength);
     void setMessageReceivedHandler(EventHandler rxedEvent);
 private:
@@ -70,7 +70,7 @@ private:
     byte _nonce_B[NONCE_LENGTH];
     byte _payload[MAX_PAYLOAD_LENGTH];
     byte _payloadLength;
-    byte _sharedKey[KEY_LENGTH];
+    byte* _sharedKey;
     unsigned long _commTimeOut;
     byte* _messageBuffer;
 };

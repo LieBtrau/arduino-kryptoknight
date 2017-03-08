@@ -7,7 +7,6 @@
 extern void print(const byte* array, byte length);
 #endif
 
-
 Kryptoknight::Kryptoknight(const byte *localId, byte idLength,
                            RNG_Function rng_function, TX_Function tx_func, RX_Function rx_func):
     Kryptoknight(rng_function, tx_func, rx_func)
@@ -21,7 +20,8 @@ Kryptoknight::Kryptoknight(RNG_Function rng_function,
     _txfunc(tx_func),
     _rxfunc(rx_func),
     _rxedEvent(0),
-    _commTimeOut(0)
+    _commTimeOut(0),
+    _sharedKey(0)
 {
     _messageBuffer=(byte*)malloc(255);
     if(!_messageBuffer)
@@ -46,9 +46,12 @@ bool Kryptoknight::setLocalId(const byte* localId, byte idLength)
     return true;
 }
 
-void  Kryptoknight::setSharedKey(const byte* key)
+void  Kryptoknight::setSharedKey(byte* key)
 {
-    memcpy(_sharedKey, key, KEY_LENGTH);
+    if(key[0]!=key[1] && key[1]!=key[2])
+    {
+        _sharedKey=key;
+    }
 }
 
 
@@ -93,7 +96,6 @@ void Kryptoknight::setMessageReceivedHandler(EventHandler rxedEvent)
 Kryptoknight::AUTHENTICATION_RESULT Kryptoknight::loop()
 {
     byte messageLength;
-
     if(millis()>_commTimeOut+10000)
     {
 #ifdef DEBUG
@@ -105,9 +107,6 @@ Kryptoknight::AUTHENTICATION_RESULT Kryptoknight::loop()
     messageLength=255;
     if(!_rxfunc(&_messageBuffer, messageLength) || !messageLength)
     {
-#ifdef DEBUG
-        // Serial.println("No message ready.");
-#endif
         if(!messageLength)
         {
 #ifdef DEBUG
@@ -116,8 +115,20 @@ Kryptoknight::AUTHENTICATION_RESULT Kryptoknight::loop()
         }
         return _state==WAITING_FOR_NONCE_A ? NO_AUTHENTICATION: AUTHENTICATION_BUSY;
     }
+    if(!_sharedKey)
+    {
 #ifdef DEBUG
-    Serial.println("Received something!");
+        Serial.println("No valid key");
+#endif
+        _state==WAITING_FOR_NONCE_A;
+        return NO_AUTHENTICATION;
+    }
+#ifdef DEBUG
+    else
+    {
+        Serial.print("Shared key: ");
+        print(_sharedKey, 16);
+    }
 #endif
     switch(_state)
     {
