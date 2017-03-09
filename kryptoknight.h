@@ -2,9 +2,7 @@
 #define KRYPTOKNIGHT_H
 
 #include "Arduino.h"
-//git clone git@github.com:LieBtrau/AES-CMAC-RFC.git ~/git/aes-cmac-rfc
-//ln -s ~/git/aes-cmac-rfc/ ~/Arduino/libraries/
-#include "cmac.h"
+#include "aes-cbc-cmac.h"
 
 //The transmission protocol should insert source and destination fields in the messages.  These are needed for authentication.
 class Kryptoknight

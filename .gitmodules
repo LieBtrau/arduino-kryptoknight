@@ -1,0 +1,3 @@
+[submodule "AES-CMAC-RFC"]
+	path = AES-CMAC-RFC
+	url = git@github.com:LieBtrau/AES-CMAC-RFC.git
