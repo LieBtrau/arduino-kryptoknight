@@ -1,6 +1,6 @@
 #include "kryptoknightcomm.h"
 
-
+//#define DEBUG
 
 KryptoKnightComm::KryptoKnightComm(byte *localId, byte idLength,
                                    RNG_Function rng_function, TX_Function tx_func, RX_Function rx_func):
@@ -56,7 +56,7 @@ KryptoKnightComm::AUTHENTICATION_RESULT KryptoKnightComm::loop()
     }
     switch(_state)
     {
-    case WAITING_FOR_ID_B:
+    case WAITING_FOR_ID_B:      //A & B
         _krypto.reset();
         if(parseIdB(messageLength) && sendNonceA())
         {
@@ -65,7 +65,7 @@ KryptoKnightComm::AUTHENTICATION_RESULT KryptoKnightComm::loop()
             return AUTHENTICATION_BUSY;
         }
         break;
-    case WAITING_FOR_NONCE_A:
+    case WAITING_FOR_NONCE_A:   //B
         if(parseNonceA() && sendNonceB())
         {
             _state=WAITING_FOR_MAC_NAB;
@@ -73,10 +73,10 @@ KryptoKnightComm::AUTHENTICATION_RESULT KryptoKnightComm::loop()
         }
         _state=WAITING_FOR_ID_B;
         return NO_AUTHENTICATION;
-    case WAITING_FOR_NONCE_B:
+    case WAITING_FOR_NONCE_B:   //A
         _state=WAITING_FOR_ID_B;
-        return (parseNonceB(messageLength) && sendMacNab()) ? AUTHENTICATION_AS_INITIATOR_OK : NO_AUTHENTICATION;
-    case WAITING_FOR_MAC_NAB:
+        return (parseNonceB(messageLength) && sendMacNab()) ? AUTHENTICATION_AS_PEER_OK : NO_AUTHENTICATION;
+    case WAITING_FOR_MAC_NAB:   //B
         _state=WAITING_FOR_ID_B;
         if(parseMacNab())
         {
@@ -87,7 +87,7 @@ KryptoKnightComm::AUTHENTICATION_RESULT KryptoKnightComm::loop()
             {
                 _rxedEvent(_krypto.getPayload(), _krypto.getPayloadSize());
             }
-            return AUTHENTICATION_AS_PEER_OK;
+            return AUTHENTICATION_AS_INITIATOR_OK;
         }
         return NO_AUTHENTICATION;
     }

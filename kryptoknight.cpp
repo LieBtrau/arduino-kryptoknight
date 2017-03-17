@@ -2,7 +2,7 @@
 // P.Janson, G.Tsudik, M.Yung, "Scalability and Flexibility in Authentication Services: The Kryptoknight Approach," Proc. IEEE Infocom 97, Kobe, Japan (Apr 97).
 
 #include "kryptoknight.h"
-#define DEBUG
+//#define DEBUG
 #ifdef DEBUG
 extern void print(const byte* array, byte length);
 #endif
@@ -55,7 +55,16 @@ void Kryptoknight::setInitiator(bool isInitiator)
 void Kryptoknight::setLocalId(byte* localId, byte idLength)
 {
     _localID.length=idLength;
-    _localID.value=localId;
+    if(_localID.value)
+    {
+        free(_localID.value);
+    }
+    _localID.value=(byte*)malloc(idLength);
+    memcpy(_localID.value, localId, idLength);
+#ifdef DEBUG
+    Serial.print("Krypto id:");
+    print(_localID.value, _localID.length);
+#endif
 }
 
 void Kryptoknight::getLocalNonce(byte* nonce)
@@ -104,6 +113,10 @@ bool Kryptoknight::isValidMacba(byte* macIn)
 {
     byte* buffer=(byte*)malloc(KEY_LENGTH);
     getMacba(buffer);
+#ifdef DEBUG
+    Serial.print("Mac IN: "); print(macIn, KEY_LENGTH);
+    Serial.print("MacBA: "); print(buffer, KEY_LENGTH);
+#endif
     bool bResult= !memcmp(buffer, macIn, KEY_LENGTH);
     free(buffer);
     return bResult;
@@ -118,6 +131,10 @@ bool Kryptoknight::isValidMacab(byte* macIn)
 {
     byte* buffer=(byte*)malloc(KEY_LENGTH);
     getMacab(buffer);
+#ifdef DEBUG
+    Serial.print("Mac IN: "); print(macIn, KEY_LENGTH);
+    Serial.print("MacAB: "); print(buffer, KEY_LENGTH);
+#endif
     bool bResult= !memcmp(buffer, macIn, KEY_LENGTH);
     free(buffer);
     return bResult;
@@ -137,6 +154,10 @@ void Kryptoknight::getMacba(byte* macOut)
     pBuf+=NONCE_LENGTH;
     memcpy(pBuf, _bIsInitiator ? _remoteID.value : _localID.value, idLength);
     pBuf+=idLength;
+#ifdef DEBUG
+    Serial.print("Krypto id in MACBA:");print(_localID.value, _localID.length);
+    Serial.print("Calc MacBA from : "); print(buffer, pBuf-buffer);
+#endif
     AES_CMAC(_sharedKey, buffer, pBuf-buffer , macOut);
     free(buffer);
 }
@@ -148,14 +169,17 @@ void Kryptoknight::getMacab(byte* macOut)
     byte* buffer=(byte*)malloc(bufferLength);
     memcpy(buffer,  _bIsInitiator ? _localNonce : _remoteNonce, NONCE_LENGTH);
     memcpy(buffer+NONCE_LENGTH,  _bIsInitiator ? _remoteNonce : _localNonce, NONCE_LENGTH);
+#ifdef DEBUG
+    Serial.print("Calc MacAB from : "); print(buffer, bufferLength);
+#endif
     AES_CMAC(_sharedKey, buffer, bufferLength, macOut);
     free(buffer);
 }
 
 void Kryptoknight::reset()
 {
-    _remoteID.length=0;
     _remoteID.value=0;
+    _remoteID.length=0;
     memset(_localNonce, 0, sizeof(_localNonce));
     memset(_remoteNonce, 0, sizeof(_remoteNonce));
     memset(_payload, 0, sizeof(_payload));
