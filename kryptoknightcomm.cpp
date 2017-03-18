@@ -75,10 +75,7 @@ KryptoKnightComm::AUTHENTICATION_RESULT KryptoKnightComm::loop()
         return NO_AUTHENTICATION;
     case WAITING_FOR_NONCE_B:   //A
         _state=WAITING_FOR_ID_B;
-        return (parseNonceB(messageLength) && sendMacNab()) ? AUTHENTICATION_AS_PEER_OK : NO_AUTHENTICATION;
-    case WAITING_FOR_MAC_NAB:   //B
-        _state=WAITING_FOR_ID_B;
-        if(parseMacNab())
+        if (parseNonceB(messageLength) && sendMacNab())
         {
 #ifdef DEBUG
             Serial.println("MAC_NAB successfully received");
@@ -87,9 +84,12 @@ KryptoKnightComm::AUTHENTICATION_RESULT KryptoKnightComm::loop()
             {
                 _rxedEvent(_krypto.getPayload(), _krypto.getPayloadSize());
             }
-            return AUTHENTICATION_AS_INITIATOR_OK;
+            return AUTHENTICATION_AS_PEER_OK;
         }
         return NO_AUTHENTICATION;
+    case WAITING_FOR_MAC_NAB:   //B
+        _state=WAITING_FOR_ID_B;
+        return parseMacNab() ? AUTHENTICATION_AS_INITIATOR_OK : NO_AUTHENTICATION;
     }
 }
 

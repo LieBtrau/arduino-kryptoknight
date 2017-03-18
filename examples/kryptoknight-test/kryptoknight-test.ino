@@ -44,17 +44,17 @@ void setup() {
 void loop() {
   if (k1.loop() == KryptoKnightComm::AUTHENTICATION_AS_INITIATOR_OK)
   {
-    Serial.println("Message received by peer and acknowledged");
+    Serial.println("Message received by remote initiator");
   }
   if (k2.loop() == KryptoKnightComm::AUTHENTICATION_AS_PEER_OK)
   {
-    Serial.println("Message received by remote initiator");
+    Serial.println("Message received by peer and acknowledged");
   }
 }
 
 void setKeyInfo(byte* remoteId, byte length)
 {
-  Serial.println("ID Event received with the following data:");
+  Serial.println("The party with the following remote ID wants to authenticate:");
   print(remoteId, length);
   k2.setRemoteParty(id1, IDLENGTH, sharedkey);
 }
