@@ -1,4 +1,4 @@
-#include "kryptoknight.h"
+#include "kryptoknightcomm.h"
 
 static int RNG(uint8_t *dest, unsigned size);
 void print(const byte* array, byte length);
@@ -20,19 +20,21 @@ byte sharedkey[16] = {0xA, 0xB, 0xC, 0xD,
 byte payload[4] = {0xFE, 0xDC, 0xBA, 0x98};
 byte commBuff[100];
 byte commLength;
-Kryptoknight k1 = Kryptoknight(id1, IDLENGTH, &RNG, writeData1, readData1);
-Kryptoknight k2 = Kryptoknight(id2, IDLENGTH, &RNG, writeData2, readData2);
+KryptoKnightComm k1 = KryptoKnightComm(&RNG, writeData1, readData1);
+KryptoKnightComm k2 = KryptoKnightComm(&RNG, writeData2, readData2);
 
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
-  while(!Serial);
+  while (!Serial);
   Serial.println("\r\nstart");
-  k1.setSharedKey(sharedkey);
-  k2.setSharedKey(sharedkey);
+  k1.init(id1, IDLENGTH);
+  k2.init(id2, IDLENGTH);
+
   k2.setMessageReceivedHandler(dataReceived);
+  k2.setKeyRequestHandler(setKeyInfo);
   Serial.println("Initiator starts authentication");
-  if (!k1.sendMessage(id2, payload, 4))
+  if (!k1.sendMessage(payload, sizeof(payload), id2, IDLENGTH, sharedkey))
   {
     Serial.println("Sending message failed.");
     return;
@@ -40,15 +42,23 @@ void setup() {
 }
 
 void loop() {
-  if (k1.loop() == Kryptoknight::AUTHENTICATION_AS_INITIATOR_OK)
+  if (k1.loop() == KryptoKnightComm::AUTHENTICATION_AS_INITIATOR_OK)
   {
     Serial.println("Message received by peer and acknowledged");
   }
-  if (k2.loop() == Kryptoknight::AUTHENTICATION_AS_PEER_OK)
+  if (k2.loop() == KryptoKnightComm::AUTHENTICATION_AS_PEER_OK)
   {
     Serial.println("Message received by remote initiator");
   }
 }
+
+void setKeyInfo(byte* remoteId, byte length)
+{
+  Serial.println("ID Event received with the following data:");
+  print(remoteId, length);
+  k2.setRemoteParty(id1, IDLENGTH, sharedkey);
+}
+
 
 //TODO: replace by safe external RNG
 static int RNG(uint8_t *dest, unsigned size) {
