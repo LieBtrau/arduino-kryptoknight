@@ -25,6 +25,7 @@ public:
     bool sendMessage(const byte* payload, byte payloadLength, byte *remoteId, byte idLength, byte *sharedKey);
     void setMessageReceivedHandler(EventHandler rxedEvent);
     void setKeyRequestHandler(EventHandler idRxedEvent);
+    void reset();
 private:
     typedef enum
     {

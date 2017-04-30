@@ -33,6 +33,11 @@ bool KryptoKnightComm::init(byte* localId, byte idLength)
     _krypto.setLocalId(localId, idLength);
 }
 
+void KryptoKnightComm::reset()
+{
+    _state=NOT_STARTED;
+}
+
 bool KryptoKnightComm::setRemoteParty(byte* remoteId, byte idLength, byte* sharedKey)
 {
     return _krypto.setRemoteInfo(remoteId, idLength, sharedKey);
@@ -41,7 +46,7 @@ bool KryptoKnightComm::setRemoteParty(byte* remoteId, byte idLength, byte* share
 KryptoKnightComm::AUTHENTICATION_RESULT KryptoKnightComm::loop()
 {
     byte messageLength;
-    if(millis()>_commTimeOut+10000)
+    if(millis()>_commTimeOut+5000)
     {
 #ifdef DEBUG
         Serial.println("Timeout");
@@ -72,7 +77,7 @@ KryptoKnightComm::AUTHENTICATION_RESULT KryptoKnightComm::loop()
             return AUTHENTICATION_BUSY;
         }
         _state=WAITING_FOR_ID_B;
-        return NO_AUTHENTICATION;
+        break;
     case WAITING_FOR_NONCE_B:   //A
         _state=WAITING_FOR_ID_B;
         if (parseNonceB(messageLength) && sendMacNab())
@@ -86,11 +91,12 @@ KryptoKnightComm::AUTHENTICATION_RESULT KryptoKnightComm::loop()
             }
             return AUTHENTICATION_AS_PEER_OK;
         }
-        return NO_AUTHENTICATION;
+        break;
     case WAITING_FOR_MAC_NAB:   //B
         _state=WAITING_FOR_ID_B;
         return parseMacNab() ? AUTHENTICATION_AS_INITIATOR_OK : NO_AUTHENTICATION;
     }
+    return NO_AUTHENTICATION;
 }
 
 void KryptoKnightComm::setMessageReceivedHandler(EventHandler rxedEvent)

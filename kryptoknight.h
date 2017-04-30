@@ -25,7 +25,7 @@ public:
     byte* getPayload();
     void getPayload(byte* destination);
     void setInitiator(bool isInitiator);
-    void setLocalId(byte* localId, byte idLength);
+    void setLocalId(const byte* localId, byte idLength);
     bool setRemoteInfo(byte* remoteId, byte idLength, byte* key);
     void setRemoteNonce(byte* nonce);
     bool setPayload(const byte* payload, byte payloadLength);

@@ -52,7 +52,7 @@ void Kryptoknight::setInitiator(bool isInitiator)
     _bIsInitiator=isInitiator;
 }
 
-void Kryptoknight::setLocalId(byte* localId, byte idLength)
+void Kryptoknight::setLocalId(const byte* localId, byte idLength)
 {
     _localID.length=idLength;
     if(_localID.value)
