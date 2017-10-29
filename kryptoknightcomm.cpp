@@ -1,6 +1,5 @@
 #include "kryptoknightcomm.h"
-
-//#define DEBUG
+#include "debug.h"
 
 KryptoKnightComm::KryptoKnightComm(byte *localId, byte idLength,
                                    RNG_Function rng_function, TX_Function tx_func, RX_Function rx_func):
@@ -22,9 +21,7 @@ KryptoKnightComm::KryptoKnightComm(RNG_Function rng_function, TX_Function tx_fun
     _messageBuffer=(byte*)malloc(255);
     if(!_messageBuffer)
     {
-#ifdef DEBUG
-        Serial.println("Can't init.");
-#endif
+        debug_println("Can't init.");
     }
 }
 
@@ -46,16 +43,14 @@ bool KryptoKnightComm::setRemoteParty(byte* remoteId, byte idLength, byte* share
 KryptoKnightComm::AUTHENTICATION_RESULT KryptoKnightComm::loop()
 {
     byte messageLength;
-    if(millis()>_commTimeOut+5000)
+    if(millis()>_commTimeOut+2500)
     {
-#ifdef DEBUG
-        Serial.println("Timeout");
-#endif
+        debug_println("Kryptoknight Timeout");
         _state=WAITING_FOR_ID_B;
         _commTimeOut=millis();
     }
     messageLength=255;
-    if(!_rxfunc(&_messageBuffer, messageLength) || !messageLength)
+    if(!_rxfunc(_messageBuffer, messageLength) || !messageLength)
     {
         return _state==WAITING_FOR_ID_B ? NO_AUTHENTICATION: AUTHENTICATION_BUSY;
     }
@@ -82,9 +77,7 @@ KryptoKnightComm::AUTHENTICATION_RESULT KryptoKnightComm::loop()
         _state=WAITING_FOR_ID_B;
         if (parseNonceB(messageLength) && sendMacNab())
         {
-#ifdef DEBUG
-            Serial.println("MAC_NAB successfully received");
-#endif
+            debug_println("MAC_NAB successfully received");
             if(_rxedEvent)
             {
                 _rxedEvent(_krypto.getPayload(), _krypto.getPayloadSize());
@@ -113,7 +106,7 @@ void KryptoKnightComm::setKeyRequestHandler(EventHandler rxedEvent)
 bool KryptoKnightComm::sendMessage(const byte* payload, byte payloadLength,
                                    byte* remoteId, byte idLength, byte* sharedKey)
 {
-    if(!_krypto.setPayload(payload, payloadLength))
+    if(!_krypto.setPayload(payload, payloadLength) || !sharedKey)
     {
         return false;
     }
@@ -121,9 +114,7 @@ bool KryptoKnightComm::sendMessage(const byte* payload, byte payloadLength,
     *_messageBuffer=ID_B;
     if(!_txfunc(_messageBuffer,1+_krypto.getLocalId(_messageBuffer+1)))
     {
-#ifdef DEBUG
-        Serial.println("Can't send initiator message.");
-#endif
+  debug_println("Can't send initiator message.");
         return false;
     }
     _krypto.setInitiator(true);
@@ -137,16 +128,12 @@ bool KryptoKnightComm::parseIdB(byte messageLength)
 {
     if(*_messageBuffer!=ID_B)
     {
-#ifdef DEBUG
-        Serial.println("Message is not ID_B.");
-#endif
+        debug_println("Message is not ID_B.");
         return false;
     }
     if(!_idRxedEvent)
     {
-#ifdef DEBUG
-        Serial.println("No ID message handler set.");
-#endif
+        debug_println("No ID message handler set.");
         return false;
     }
     //Signal the event with the received ID(B).  The eventhandler should react by passing the shared key and id to this object.
@@ -156,14 +143,13 @@ bool KryptoKnightComm::parseIdB(byte messageLength)
 
 bool KryptoKnightComm::sendNonceA()
 {
+    debug_println("Sending NONCE_A");
     *_messageBuffer=NONCE_A;
     _krypto.generateLocalNonce(_rng_function);
     _krypto.getLocalNonce(_messageBuffer+1);
     if(!_txfunc(_messageBuffer, 1+_krypto.getNonceSize()))
     {
-#ifdef DEBUG
-        Serial.println("Can't send NONCE_A message.");
-#endif
+        debug_println("Can't send NONCE_A message.");
         return false;
     }
     return true;
@@ -173,9 +159,7 @@ bool KryptoKnightComm::parseNonceA()
 {
     if(*_messageBuffer!=NONCE_A)
     {
-#ifdef DEBUG
-        Serial.println("Message is not NONCE_A.");
-#endif
+        debug_println("Message is not NONCE_A.");
         return false;
     }
     _krypto.setRemoteNonce(_messageBuffer+1);
@@ -184,6 +168,7 @@ bool KryptoKnightComm::parseNonceA()
 
 bool KryptoKnightComm::sendNonceB()
 {
+    debug_println("Sending NONCE_B");
     //Prepare 2nd message in protocol = TAG | NB | PAYLOAD  | MACba(NA|PAYLOAD|NB|B)
     *_messageBuffer=NONCE_B;
     _krypto.generateLocalNonce(_rng_function);
@@ -196,9 +181,7 @@ bool KryptoKnightComm::sendNonceB()
     ptr+=_krypto.getMacSize();
     if(!_txfunc(_messageBuffer,ptr-_messageBuffer))
     {
-#ifdef DEBUG
-        Serial.println("Can't send NONCE_B message.");
-#endif
+        debug_println("Can't send NONCE_B message.");
         return false;
     }
     return true;
@@ -208,9 +191,7 @@ bool KryptoKnightComm::parseNonceB(byte messageLength)
 {
     if(*_messageBuffer!=NONCE_B)
     {
-#ifdef DEBUG
-        Serial.println("Message is not NONCE_B");
-#endif
+        debug_println("Message is not NONCE_B");
         return false;
     }
     //Getting parameters from message: TAG | NB | PAYLOAD  | MACba(NA|PAYLOAD|NB|B)
@@ -221,9 +202,7 @@ bool KryptoKnightComm::parseNonceB(byte messageLength)
     ptr+=_krypto.getPayloadSize();
     if(!_krypto.isValidMacba(ptr))
     {
-#ifdef DEBUG
-        Serial.println("MAC_BA is invalid");
-#endif
+       debug_println("MAC_BA is invalid");
         return false;
     }
     return true;

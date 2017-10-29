@@ -8,7 +8,7 @@ class KryptoKnightComm
 public:
     typedef int (*RNG_Function)(uint8_t *dest, unsigned size);
     typedef bool(*TX_Function)(byte* data, byte length);
-    typedef bool(*RX_Function)(byte** data, byte& length);
+    typedef bool(*RX_Function)(byte* data, byte& length);
     typedef void(*EventHandler)(byte* data, byte length);
     typedef enum
     {
